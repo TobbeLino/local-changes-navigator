@@ -1,40 +1,64 @@
-<h1 align="center">
-  <br>
-  <a href="https://marketplace.visualstudio.com/items?itemName=alfredbirk.go-to-next-change">
-    <img src="https://github.com/alfredbirk/go-to-next-change/raw/main/src/logo.png" alt="logo" width="120" />
-  </a>
-  <br>
-  <br>
-  Go to next change
-  <br>
-</h1>
+# Local Changes Navigator (VSCode extension)
 
-<h3 align="center" style="font-size: 14px">Cycle through diffs in changed files with a shortcut. When at the end of a file, it will automatically jump to the next file.</h3>
-
-<p align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=alfredbirk.go-to-next-change">
-      <img src="https://img.shields.io/visual-studio-marketplace/v/alfredbirk.go-to-next-change?color=brightgreen&label=VS%20Marketplace" />
-  </a>
-</p>
-<br>
-
-![Final4](https://github.com/alfredbirk/go-to-next-change/assets/11172530/456b380f-e555-404c-9e7d-39b9f3b127ff)
+Navigate/cycle through all local changes in the current repo, or across all repositories in your workspace. Cycle through changes with F7, jump between files with Alt+F7. Supports multi-root workspaces.
 
 ## Features
 
--   Go to next git change: `alt+z` / `opt+z`
--   Go to previous git change: `alt+a` / `opt+a`
+### 🔄 Navigate Changes (F7)
+- **F7** / **Shift+F7** — Jump to next/previous change (current repo)
+- **Ctrl+F7** / **Ctrl+Shift+F7** — Jump to next/previous change (across all repos)
+- **Wrap-around cycling** — Automatically wraps to first/last change with notification
 
-## Other features
+### 📁 Navigate Files (Alt+F7)
+- **Alt+F7** / **Alt+Shift+F7** — Jump to next/previous changed file (current repo)
+- **Ctrl+Alt+F7** / **Ctrl+Alt+Shift+F7** — Jump to next/previous changed file (across all repos)
+- Skip remaining changes in current file and move to the next
 
--   Revert selected changes and save file: `alt+q` / `opt+q`
--   Go to next changed file: `ctrl+alt+z` / `cmd+opt+z`
--   Go to previous changed file: `ctrl+alt+a` / `cmd+opt+a`
+## How It Works
 
-## If you use Tree view
+1. Press **F7** to open the diff view for the first changed file
+2. Keep pressing **F7** to navigate through each change
+3. When you reach the last change in a file, it automatically jumps to the next file
+4. At the end of all changes, it wraps back to the beginning
 
--   If you use "Tree view" in the source control (as opposed to the default List view), go to settings and check off the setting `Go to next change: Tree view`. That will make the changes cycle in correct order.
+### Complete Change Coverage - don't miss anything!
+- ✅ **Staged changes** — Files in "Staged Changes" (Index)
+- ✅ **Unstaged changes** — Files in "Changes" (Working Tree)
+- ✅ **Untracked files** — New files not yet tracked by Git
+- ✅ **Multi-root workspaces** — Multiple git repositories
+- ✅ **List & Tree view** — Works with both SCM view modes
 
-## Suggestions & Issues
+### Smart Tab Handling
+- **Pinned tabs preserved** — Your pinned diff tabs stay open and are reused
+- **Preview tabs cleaned up** — Temporary preview tabs are closed automatically
+- **Cursor position aware** — When pressing F7 in a regular file, opens diff at your cursor position
+- **Orphaned tab detection** — Ignores stale tabs (e.g., staged diff for an unstaged file)
 
-Suggestions and issues related to the extension can be submitted [on Github](https://github.com/alfredbirk/go-to-next-change/issues)
+## Installation
+
+Search for "Local Changes Navigator" in the VS Code Extensions marketplace, or install from [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=tobbelino.local-changes-navigator).
+
+## Issues & Suggestions
+
+Found a bug or have a feature request? [Open an issue on GitHub](https://github.com/TobbeLino/local-changes-navigator/issues).
+
+## Keybindings
+
+| Command | Windows/Linux | Mac |
+|---------|---------------|-----|
+| Next change (current repo) | F7 | F7 |
+| Previous change (current repo) | Shift+F7 | Shift+F7 |
+| Next change (all repos) | Ctrl+F7 | Cmd+F7 |
+| Previous change (all repos) | Ctrl+Shift+F7 | Cmd+Shift+F7 |
+| Next file (current repo) | Alt+F7 | Alt+F7 |
+| Previous file (current repo) | Alt+Shift+F7 | Alt+Shift+F7 |
+| Next file (all repos) | Ctrl+Alt+F7 | Cmd+Alt+F7 |
+| Previous file (all repos) | Ctrl+Alt+Shift+F7 | Cmd+Alt+Shift+F7 |
+
+## Credits
+
+Originally forked from [go-to-next-change](https://github.com/alfredbirk/go-to-next-change) by [Alfred Birk](https://github.com/alfredbirk).
+
+## License
+
+MIT

@@ -1,99 +1,119 @@
 {
-    "name": "go-to-next-change",
-    "displayName": "Go to next change",
-    "description": "Cycle through diffs in changed files. When at the end of a file, it will automatically jump to the next file.",
-    "version": "0.7.7",
-    "icon": "src/logo.png",
+    "name": "local-changes-navigator",
+    "displayName": "Local Changes Navigator",
+    "description": "Navigate local changes across all repositories in your workspace. Cycle through changes with F7, jump between files with Alt+F7. Supports multi-root workspaces.",
+    "version": "1.0.0",
+    "icon": "icon.png",
     "engines": {
-        "vscode": "^1.83.0"
+        "vscode": "^1.107.0"
     },
     "keywords": [
-        "next",
-        "change",
-        "changed",
-        "file",
-        "files",
-        "shortcut",
-        "hotkey",
         "git",
+        "diff",
+        "changes",
+        "navigate",
+        "navigation",
         "scm",
         "source control",
-        "cycle",
-        "previous"
+        "multi-root",
+        "workspace",
+        "multi-repo",
+        "F7",
+        "next change",
+        "previous change"
     ],
     "repository": {
         "type": "git",
-        "url": "https://github.com/alfredbirk/go-to-next-change"
+        "url": "https://github.com/TobbeLino/local-changes-navigator"
     },
-    "publisher": "alfredbirk",
+    "publisher": "tobbelino",
     "categories": [
+        "SCM Providers",
         "Other"
     ],
     "activationEvents": [],
     "main": "./dist/extension.js",
+    "files": [
+        "dist/extension.js",
+        "icon.png",
+        "LICENSE",
+        "README.md"
+    ],
     "contributes": {
         "commands": [
             {
-                "command": "go-to-next-change.go-to-next-scm-change",
-                "title": "Go to next git change"
+                "command": "local-changes-navigator.next-change",
+                "title": "Local Changes: Next change"
             },
             {
-                "command": "go-to-next-change.go-to-previous-scm-change",
-                "title": "Go to previous git change"
+                "command": "local-changes-navigator.previous-change",
+                "title": "Local Changes: Previous change"
             },
             {
-                "command": "go-to-next-change.go-to-next-changed-file",
-                "title": "Go to next changed file"
+                "command": "local-changes-navigator.next-change-all-repos",
+                "title": "Local Changes: Next change (all repos)"
             },
             {
-                "command": "go-to-next-change.go-to-previous-changed-file",
-                "title": "Go to previous changed file"
+                "command": "local-changes-navigator.previous-change-all-repos",
+                "title": "Local Changes: Previous change (all repos)"
             },
             {
-                "command": "go-to-next-change.revert-and-save",
-                "title": "Revert selected changes and save"
+                "command": "local-changes-navigator.next-file",
+                "title": "Local Changes: Next file"
+            },
+            {
+                "command": "local-changes-navigator.previous-file",
+                "title": "Local Changes: Previous file"
+            },
+            {
+                "command": "local-changes-navigator.next-file-all-repos",
+                "title": "Local Changes: Next file (all repos)"
+            },
+            {
+                "command": "local-changes-navigator.previous-file-all-repos",
+                "title": "Local Changes: Previous file (all repos)"
             }
         ],
-        "configuration": {
-            "title": "Go to next change",
-            "properties": {
-                "go-to-next-change.treeView": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Check this If you use Tree view (as opposed to List view)"
-                },
-                "go-to-next-change.shouldOpenScmView": {
-                    "type": "boolean",
-                    "default": true,
-                    "description": "Controls whether the source control side panel should open when going to next/previous change"
-                }
-            }
-        },
         "keybindings": [
             {
-                "command": "go-to-next-change.go-to-next-scm-change",
-                "key": "alt+z",
-                "mac": "alt+z"
+                "command": "local-changes-navigator.next-change",
+                "key": "f7",
+                "mac": "f7"
             },
             {
-                "command": "go-to-next-change.go-to-previous-scm-change",
-                "key": "alt+a",
-                "mac": "alt+a"
+                "command": "local-changes-navigator.previous-change",
+                "key": "shift+f7",
+                "mac": "shift+f7"
             },
             {
-                "command": "go-to-next-change.go-to-next-changed-file",
-                "key": "ctrl+alt+z",
-                "mac": "cmd+alt+z"
+                "command": "local-changes-navigator.next-change-all-repos",
+                "key": "ctrl+f7",
+                "mac": "cmd+f7"
             },
             {
-                "command": "go-to-next-change.go-to-previous-changed-file",
-                "key": "ctrl+alt+a",
-                "mac": "cmd+alt+a"
+                "command": "local-changes-navigator.previous-change-all-repos",
+                "key": "ctrl+shift+f7",
+                "mac": "cmd+shift+f7"
             },
             {
-                "command": "go-to-next-change.revert-and-save",
-                "key": "alt+q",
-                "mac": "alt+q"
+                "command": "local-changes-navigator.next-file",
+                "key": "alt+f7",
+                "mac": "alt+f7"
+            },
+            {
+                "command": "local-changes-navigator.previous-file",
+                "key": "alt+shift+f7",
+                "mac": "alt+shift+f7"
+            },
+            {
+                "command": "local-changes-navigator.next-file-all-repos",
+                "key": "ctrl+alt+f7",
+                "mac": "cmd+alt+f7"
+            },
+            {
+                "command": "local-changes-navigator.previous-file-all-repos",
+                "key": "ctrl+alt+shift+f7",
+                "mac": "cmd+alt+shift+f7"
             }
         ]
     },
@@ -102,25 +122,20 @@
         "compile": "webpack",
         "watch": "webpack --watch",
         "package": "webpack --mode production --devtool hidden-source-map",
-        "compile-tests": "tsc -p . --outDir out",
-        "watch-tests": "tsc -p . -w --outDir out",
-        "pretest": "npm run compile-tests && npm run compile && npm run lint",
-        "lint": "eslint src --ext ts",
-        "test": "node ./out/test/runTest.js"
+        "prebuild": "rimraf -g dist/*.vsix",
+        "build": "npm run package && npx vsce package --out dist/",
+        "lint": "eslint src"
     },
     "devDependencies": {
-        "@types/vscode": "^1.83.0",
-        "@types/mocha": "^10.0.3",
-        "@types/node": "18.x",
-        "@typescript-eslint/eslint-plugin": "^6.9.0",
-        "@typescript-eslint/parser": "^6.9.0",
-        "eslint": "^8.52.0",
-        "glob": "^10.3.10",
-        "mocha": "^10.2.0",
-        "typescript": "^5.2.2",
-        "ts-loader": "^9.5.0",
-        "webpack": "^5.89.0",
-        "webpack-cli": "^5.1.4",
-        "@vscode/test-electron": "^2.3.6"
+        "@types/vscode": "^1.107.0",
+        "@types/node": "^25.0.3",
+        "@eslint/js": "^9.39.2",
+        "typescript-eslint": "^8.52.0",
+        "eslint": "^9.39.2",
+        "rimraf": "^6.1.2",
+        "typescript": "^5.9.3",
+        "ts-loader": "^9.5.4",
+        "webpack": "^5.104.1",
+        "webpack-cli": "^6.0.1"
     }
 }
