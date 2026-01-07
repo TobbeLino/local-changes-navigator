@@ -420,8 +420,10 @@ const openFileAtIndex = async (fileChanges: FileChange[], index: number, backwar
 };
 
 /**
- * Main navigation: go to next diff/file
- * @param flags - 'skipToNextFile' skips directly to next file without navigating within current file
+ * Main navigation: go to next/previous change or file
+ * @param flags - Flags.allRepos: search across all repos
+ *              - Flags.backwards: navigate backwards
+ *              - Flags.file: skip to next/previous file (ignore remaining changes in current file)
  */
 const goToNext = async (...flags: Flag[]) => {
     const f = new Set(flags);
