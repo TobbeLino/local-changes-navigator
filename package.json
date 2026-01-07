@@ -2,10 +2,10 @@
     "name": "local-changes-navigator",
     "displayName": "Local Changes Navigator",
     "description": "Navigate local changes across all repositories in your workspace. Cycle through changes with F7, jump between files with Alt+F7. Supports multi-root workspaces.",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "icon": "icon.png",
     "engines": {
-        "vscode": "^1.107.0"
+        "vscode": "^1.83.0"
     },
     "keywords": [
         "git",
@@ -127,7 +127,7 @@
         "lint": "eslint src"
     },
     "devDependencies": {
-        "@types/vscode": "^1.107.0",
+        "@types/vscode": "^1.83.0",
         "@types/node": "^25.0.3",
         "@eslint/js": "^9.39.2",
         "typescript-eslint": "^8.52.0",
