@@ -459,13 +459,23 @@ const goToNext = async (...flags: Flag[]) => {
                 editor.selection = new vscode.Selection(pos, pos);
                 editor.revealRange(new vscode.Range(pos, pos));
             }
-            const lineBefore = editor?.selection.active.line;
-            await vscode.commands.executeCommand(backwards ? 'workbench.action.compareEditor.previousChange' : 'workbench.action.compareEditor.nextChange');
-            const lineAfter = vscode.window.activeTextEditor?.selection.active.line;
 
-            // If cursor moved in the correct direction, we found a change - done
-            if (lineBefore !== undefined && lineAfter !== undefined && (backwards ? lineAfter < lineBefore : lineAfter > lineBefore)) {
-                return;
+            // Try navigating within the diff
+            const lineBefore = vscode.window.activeTextEditor?.selection.active.line ?? 0;
+            await vscode.commands.executeCommand(backwards ? 'workbench.action.compareEditor.previousChange' : 'workbench.action.compareEditor.nextChange');
+            const lineAfter = vscode.window.activeTextEditor?.selection.active.line ?? 0;
+
+            // Check if we found a change in the expected direction
+            const movedCorrectDirection = backwards ? (lineAfter < lineBefore) : (lineAfter > lineBefore);
+            if (movedCorrectDirection) {
+                return; // Found a change within the file, done
+            }
+
+            // Cursor didn't move in expected direction - either wrapped or at boundary
+            // Undo the wrap by going back to where we were
+            if (lineAfter !== lineBefore) {
+                // VS Code wrapped - undo by navigating the opposite direction
+                await vscode.commands.executeCommand(backwards ? 'workbench.action.compareEditor.nextChange' : 'workbench.action.compareEditor.previousChange');
             }
         }
     }
