@@ -8,104 +8,81 @@ export const Flags = {
 
 export type Flag = typeof Flags[keyof typeof Flags];
 
+// ============================================================================
+// GIT API TYPES
+// ============================================================================
+
+interface GitFile {
+    uri: vscode.Uri;
+    status: number;
+}
+
+interface GitRepoState {
+    indexChanges: GitFile[];
+    workingTreeChanges: GitFile[];
+    untrackedChanges?: GitFile[];
+}
+
+interface GitRepo {
+    rootUri: vscode.Uri;
+    state: GitRepoState;
+}
+
+interface GitAPI {
+    repositories: GitRepo[];
+}
+
+interface GitExtension {
+    getAPI(version: number): GitAPI;
+}
+
 // Prevent rapid-fire race conditions
 let isNavigating = false;
 
+/**
+ * Creates a navigation command handler with race condition prevention
+ */
+const createNavigationCommand = (...flags: Flag[]) => {
+    return async () => {
+        if (!isNavigating) {
+            isNavigating = true;
+            try {
+                await goToNext(...flags);
+            } finally {
+                isNavigating = false;
+            }
+        }
+    };
+};
+
 export function activate(context: vscode.ExtensionContext) {
-    // Current repo only (F7 / Shift+F7)
-    let disposable = vscode.commands.registerCommand('local-changes-navigator.next-change', async () => {
-        if (!isNavigating) {
-            isNavigating = true;
-            try {
-                await goToNext();
-            } finally {
-                isNavigating = false;
-            }
-        }
-    });
+    context.subscriptions.push(
 
-    let disposable2 = vscode.commands.registerCommand('local-changes-navigator.previous-change', async () => {
-        if (!isNavigating) {
-            isNavigating = true;
-            try {
-                await goToNext(Flags.backwards);
-            } finally {
-                isNavigating = false;
-            }
-        }
-    });
+        // Current repo only (F7 / Shift+F7)
+        vscode.commands.registerCommand('local-changes-navigator.next-change',
+            createNavigationCommand()),
+        vscode.commands.registerCommand('local-changes-navigator.previous-change',
+            createNavigationCommand(Flags.backwards)),
 
-    // All repos in the current workspace (Ctrl+F7 / Ctrl+Shift+F7)
-    let disposable3 = vscode.commands.registerCommand('local-changes-navigator.next-change-all-repos', async () => {
-        if (!isNavigating) {
-            isNavigating = true;
-            try {
-                await goToNext(Flags.allRepos);
-            } finally {
-                isNavigating = false;
-            }
-        }
-    });
+        // All repos in the current workspace (Ctrl+F7 / Ctrl+Shift+F7)
+        vscode.commands.registerCommand('local-changes-navigator.next-change-all-repos',
+            createNavigationCommand(Flags.allRepos)),
+        vscode.commands.registerCommand('local-changes-navigator.previous-change-all-repos',
+            createNavigationCommand(Flags.allRepos, Flags.backwards)),
 
-    let disposable4 = vscode.commands.registerCommand('local-changes-navigator.previous-change-all-repos', async () => {
-        if (!isNavigating) {
-            isNavigating = true;
-            try {
-                await goToNext(Flags.allRepos, Flags.backwards);
-            } finally {
-                isNavigating = false;
-            }
-        }
-    });
+        // Next/previous FILE (skip remaining changes in current file)
+        // Current repo only (Alt+F7 / Alt+Shift+F7)
+        vscode.commands.registerCommand('local-changes-navigator.next-file',
+            createNavigationCommand(Flags.file)),
+        vscode.commands.registerCommand('local-changes-navigator.previous-file',
+            createNavigationCommand(Flags.backwards, Flags.file)),
 
-    // Next/previous FILE (skip remaining changes in current file)
-    // Current repo only (Alt+F7 / Alt+Shift+F7)
-    let disposable5 = vscode.commands.registerCommand('local-changes-navigator.next-file', async () => {
-        if (!isNavigating) {
-            isNavigating = true;
-            try {
-                await goToNext(Flags.file);
-            } finally {
-                isNavigating = false;
-            }
-        }
-    });
-
-    let disposable6 = vscode.commands.registerCommand('local-changes-navigator.previous-file', async () => {
-        if (!isNavigating) {
-            isNavigating = true;
-            try {
-                await goToNext(Flags.backwards, Flags.file);
-            } finally {
-                isNavigating = false;
-            }
-        }
-    });
-
-    // All repos (Ctrl+Alt+F7 / Ctrl+Alt+Shift+F7)
-    let disposable7 = vscode.commands.registerCommand('local-changes-navigator.next-file-all-repos', async () => {
-        if (!isNavigating) {
-            isNavigating = true;
-            try {
-                await goToNext(Flags.allRepos, Flags.file);
-            } finally {
-                isNavigating = false;
-            }
-        }
-    });
-
-    let disposable8 = vscode.commands.registerCommand('local-changes-navigator.previous-file-all-repos', async () => {
-        if (!isNavigating) {
-            isNavigating = true;
-            try {
-                await goToNext(Flags.allRepos, Flags.backwards, Flags.file);
-            } finally {
-                isNavigating = false;
-            }
-        }
-    });
-
-    context.subscriptions.push(disposable, disposable2, disposable3, disposable4, disposable5, disposable6, disposable7, disposable8);
+        // All repos (Ctrl+Alt+F7 / Ctrl+Alt+Shift+F7)
+        vscode.commands.registerCommand('local-changes-navigator.next-file-all-repos',
+            createNavigationCommand(Flags.allRepos, Flags.file)),
+        vscode.commands.registerCommand('local-changes-navigator.previous-file-all-repos',
+            createNavigationCommand(Flags.allRepos, Flags.backwards, Flags.file))
+    );
 }
 
 // ============================================================================
@@ -181,7 +158,25 @@ const normalizePath = (path: string): string => {
 const pathsMatch = (path1: string, path2: string): boolean => {
     const n1 = normalizePath(path1);
     const n2 = normalizePath(path2);
-    return n1 === n2 || n1.endsWith(n2) || n2.endsWith(n1);
+
+    // Exact match
+    if (n1 === n2) {
+        return true;
+    }
+
+    // Check if one path ends with the other, ensuring it's a complete path segment
+    // (not a partial match like /foo/bar matching /bar without a separator)
+    if (n1.length > n2.length && n1.endsWith(n2)) {
+        // n1 is longer, check if n2 is a suffix with path separator
+        return n1.charAt(n1.length - n2.length - 1) === '/';
+    }
+
+    if (n2.length > n1.length && n2.endsWith(n1)) {
+        // n2 is longer, check if n1 is a suffix with path separator
+        return n2.charAt(n2.length - n1.length - 1) === '/';
+    }
+
+    return false;
 };
 
 const getActiveFilePath = async (): Promise<string> => {
@@ -211,17 +206,24 @@ interface FileChange {
     isStaged: boolean;
 }
 
-const getGitAPI = () => {
-    const gitExtension = vscode.extensions.getExtension<any>('vscode.git')!.exports;
-    return gitExtension.getAPI(1);
+const getGitAPI = (): GitAPI => {
+    const gitExtension = vscode.extensions.getExtension<GitExtension>('vscode.git');
+    if (!gitExtension) {
+        throw new Error('Git extension not found. Please ensure the Git extension is installed and enabled.');
+    }
+    const api = gitExtension.exports.getAPI(1);
+    if (!api) {
+        throw new Error('Unable to access Git API.');
+    }
+    return api;
 };
 
-const getCurrentRepo = async () => {
+const getCurrentRepo = async (): Promise<GitRepo | null> => {
     const git = getGitAPI();
     const currentFilePath = await getActiveFilePath();
     if (currentFilePath) {
         const normalizedCurrentPath = normalizePath(currentFilePath);
-        return git.repositories.find((repo: any) =>
+        return git.repositories.find((repo: GitRepo) =>
             normalizedCurrentPath.startsWith(normalizePath(repo.rootUri.path))
         ) ?? null;
     }
@@ -231,20 +233,20 @@ const getCurrentRepo = async () => {
 // Git status codes from VS Code Git extension
 const GIT_STATUS_UNTRACKED = 7;
 
-const mapToFileChange = (file: any, isStaged: boolean): FileChange => ({
+const mapToFileChange = (file: GitFile, isStaged: boolean): FileChange => ({
     uri: file.uri,
     // Check status property: 7 = UNTRACKED in VS Code Git extension
     isUntracked: file.status === GIT_STATUS_UNTRACKED,
     isStaged: isStaged
 });
 
-const getFileChangesForRepo = (repo: any): FileChange[] => {
+const getFileChangesForRepo = (repo: GitRepo): FileChange[] => {
     if (!repo?.state) {
         return [];
     }
-    const indexChanges: FileChange[] = repo.state.indexChanges.map((f: any) => mapToFileChange(f, true));
-    const workingTreeChanges: FileChange[] = repo.state.workingTreeChanges.map((f: any) => mapToFileChange(f, false));
-    const untrackedChanges: FileChange[] = (repo.state.untrackedChanges || []).map((f: any) => mapToFileChange(f, false));
+    const indexChanges: FileChange[] = repo.state.indexChanges.map((f: GitFile) => mapToFileChange(f, true));
+    const workingTreeChanges: FileChange[] = repo.state.workingTreeChanges.map((f: GitFile) => mapToFileChange(f, false));
+    const untrackedChanges: FileChange[] = (repo.state.untrackedChanges || []).map((f: GitFile) => mapToFileChange(f, false));
     return [...indexChanges, ...workingTreeChanges, ...untrackedChanges];
 };
 
@@ -431,7 +433,13 @@ const goToNext = async (...flags: Flag[]) => {
     const backwards = f.has(Flags.backwards);
     const goToNextFile = f.has(Flags.file);
 
-    const fileChanges = await getFileChanges(allRepos);
+    let fileChanges: FileChange[];
+    try {
+        fileChanges = await getFileChanges(allRepos);
+    } catch (error) {
+        vscode.window.showErrorMessage(`Git extension error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        return;
+    }
 
     if (fileChanges.length === 0) {
         vscode.window.showInformationMessage(allRepos ? 'No changes found' : 'No changes in current repo');
