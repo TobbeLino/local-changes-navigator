@@ -86,16 +86,28 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 // ============================================================================
+// PATH HELPERS (used by ordering)
+// ============================================================================
+
+const normalizePath = (path: string): string => {
+    return path.toLowerCase().replace(/\\/g, '/').replace(/^\//, '');
+};
+
+// ============================================================================
 // FILE ORDERING (same as VS Code's SCM view)
 // ============================================================================
 
 const orderFilesForListView = (a: any, b: any): number => {
-    const filenameA = a.path.toLowerCase().split('/');
-    const filenameB = b.path.toLowerCase().split('/');
+    const filenameA = normalizePath(a.path).split('/').filter(Boolean);
+    const filenameB = normalizePath(b.path).split('/').filter(Boolean);
 
     for (let i = 0; i < Math.max(filenameA.length, filenameB.length); i++) {
         const partA = filenameA[i];
         const partB = filenameB[i];
+
+        // One path has run out - shorter path (parent) comes first
+        if (partA === undefined) return -1;
+        if (partB === undefined) return 1;
 
         if (partA === partB) {
             continue;
@@ -119,12 +131,16 @@ const orderFilesForListView = (a: any, b: any): number => {
 };
 
 const orderFilesForTreeView = (a: any, b: any): number => {
-    const filenameA = a.path.toLowerCase().split('/');
-    const filenameB = b.path.toLowerCase().split('/');
+    const filenameA = normalizePath(a.path).split('/').filter(Boolean);
+    const filenameB = normalizePath(b.path).split('/').filter(Boolean);
 
     for (let i = 0; i < Math.max(filenameA.length, filenameB.length); i++) {
         const partA = filenameA[i];
         const partB = filenameB[i];
+
+        // One path has run out - folder contents (longer path) come first
+        if (partA === undefined) return 1;
+        if (partB === undefined) return -1;
 
         if (partA === partB) {
             continue;
@@ -137,9 +153,11 @@ const orderFilesForTreeView = (a: any, b: any): number => {
             return partA < partB ? -1 : partA > partB ? 1 : 0;
         }
 
+        // A is file at this level, B is folder - folder first
         if (i === filenameA.length - 1) {
             return 1;
         }
+        // B is file at this level, A is folder - folder first
         if (i === filenameB.length - 1) {
             return -1;
         }
@@ -150,10 +168,6 @@ const orderFilesForTreeView = (a: any, b: any): number => {
 // ============================================================================
 // PATH HELPERS
 // ============================================================================
-
-const normalizePath = (path: string): string => {
-    return path.toLowerCase().replace(/\\/g, '/').replace(/^\//, '');
-};
 
 const pathsMatch = (path1: string, path2: string): boolean => {
     const n1 = normalizePath(path1);
