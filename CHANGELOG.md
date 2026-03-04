@@ -1,3 +1,7 @@
+1.0.7 (2026-03-04)
+
+- Reworked list/tree-view detection for better navigation order
+
 1.0.6 (2026-03-04)
 
 - Fixed navigation order in tree view mode to match VS Code's SCM view

@@ -40,14 +40,15 @@ interface GitExtension {
 let isNavigating = false;
 
 /**
- * Creates a navigation command handler with race condition prevention
+ * Creates a navigation command handler with race condition prevention.
+ * Accepts an optional { foldersFirst } argument from keybindings (set via when-clause args).
  */
 const createNavigationCommand = (...flags: Flag[]) => {
-    return async () => {
+    return async (args?: { foldersFirst?: boolean }) => {
         if (!isNavigating) {
             isNavigating = true;
             try {
-                await goToNext(...flags);
+                await goToNext(args?.foldersFirst, ...flags);
             } finally {
                 isNavigating = false;
             }
@@ -93,73 +94,37 @@ const normalizePath = (path: string): string => {
     return path.toLowerCase().replace(/\\/g, '/').replace(/^\//, '');
 };
 
-// ============================================================================
-// FILE ORDERING (same as VS Code's SCM view)
-// ============================================================================
-
-const orderFilesForListView = (a: any, b: any): number => {
-    const filenameA = normalizePath(a.path).split('/').filter(Boolean);
-    const filenameB = normalizePath(b.path).split('/').filter(Boolean);
-
-    for (let i = 0; i < Math.max(filenameA.length, filenameB.length); i++) {
-        const partA = filenameA[i];
-        const partB = filenameB[i];
-
-        // One path has run out - shorter path (parent) comes first
-        if (partA === undefined) return -1;
-        if (partB === undefined) return 1;
-
-        if (partA === partB) {
-            continue;
-        }
-
-        if (
-            (i === filenameA.length - 1 && i === filenameB.length - 1) ||
-            (i < filenameA.length - 1 && i < filenameB.length - 1 && partA !== partB)
-        ) {
-            return partA < partB ? -1 : partA > partB ? 1 : 0;
-        }
-
-        if (i === filenameA.length - 1) {
-            return -1;
-        }
-        if (i === filenameB.length - 1) {
-            return 1;
-        }
+/** Get path relative to repo root for consistent sorting across path formats */
+const getPathForSort = (uriPath: string, repoRoot: string): string => {
+    const path = normalizePath(uriPath);
+    const root = repoRoot ? normalizePath(repoRoot).replace(/\/?$/, '/') : '';
+    if (root && path.startsWith(root)) {
+        return path.slice(root.length) || path;
     }
-    return 0;
+    return path;
 };
 
-const orderFilesForTreeView = (a: any, b: any): number => {
-    const filenameA = normalizePath(a.path).split('/').filter(Boolean);
-    const filenameB = normalizePath(b.path).split('/').filter(Boolean);
+// ============================================================================
+// FILE ORDERING (matches VS Code SCM view: tree view = folders first, list view = files first)
+// ============================================================================
 
-    for (let i = 0; i < Math.max(filenameA.length, filenameB.length); i++) {
-        const partA = filenameA[i];
-        const partB = filenameB[i];
+const orderFiles = (a: any, b: any, repoRoot: string, foldersFirst: boolean): number => {
+    const partsA = getPathForSort(a.path, repoRoot).split('/').filter(Boolean);
+    const partsB = getPathForSort(b.path, repoRoot).split('/').filter(Boolean);
 
-        // One path has run out - folder contents (longer path) come first
-        if (partA === undefined) return 1;
-        if (partB === undefined) return -1;
+    for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
+        if (i >= partsA.length) return foldersFirst ? 1 : -1;
+        if (i >= partsB.length) return foldersFirst ? -1 : 1;
 
-        if (partA === partB) {
-            continue;
+        const aIsFile = (i === partsA.length - 1);
+        const bIsFile = (i === partsB.length - 1);
+
+        if (aIsFile !== bIsFile) {
+            return (aIsFile === foldersFirst) ? 1 : -1;
         }
 
-        if (
-            (i === filenameA.length - 1 && i === filenameB.length - 1) ||
-            (i < filenameA.length - 1 && i < filenameB.length - 1 && partA !== partB)
-        ) {
-            return partA < partB ? -1 : partA > partB ? 1 : 0;
-        }
-
-        // A is file at this level, B is folder - folder first
-        if (i === filenameA.length - 1) {
-            return 1;
-        }
-        // B is file at this level, A is folder - folder first
-        if (i === filenameB.length - 1) {
-            return -1;
+        if (partsA[i] !== partsB[i]) {
+            return partsA[i] < partsB[i] ? -1 : 1;
         }
     }
     return 0;
@@ -264,22 +229,22 @@ const getFileChangesForRepo = (repo: GitRepo): FileChange[] => {
     return [...indexChanges, ...workingTreeChanges, ...untrackedChanges];
 };
 
-const getFileChanges = async (allRepos: boolean = false): Promise<FileChange[]> => {
+const getFileChanges = async (allRepos: boolean, foldersFirst: boolean): Promise<FileChange[]> => {
     const git = getGitAPI();
-    // Auto-detect view mode from VS Code's SCM settings (no manual config needed)
-    const scmViewMode = vscode.workspace.getConfiguration('scm').get('defaultViewMode');
-    const isTreeView = (scmViewMode === 'tree');
-    const sortFn = (a: FileChange, b: FileChange) =>
-        isTreeView ? orderFilesForTreeView(a.uri, b.uri) : orderFilesForListView(a.uri, b.uri);
+
+    const sortForRepo = (repo: GitRepo) => {
+        const repoRoot = repo?.rootUri?.path ?? '';
+        return getFileChangesForRepo(repo).sort(
+            (a: FileChange, b: FileChange) => orderFiles(a.uri, b.uri, repoRoot, foldersFirst)
+        );
+    };
 
     if (allRepos) {
-        return git.repositories.flatMap((repo: any) => {
-            return getFileChangesForRepo(repo).sort(sortFn);
-        });
+        return git.repositories.flatMap((repo: any) => sortForRepo(repo));
     } else {
         const currentRepo = await getCurrentRepo();
         const repo = currentRepo || git.repositories[0];
-        return getFileChangesForRepo(repo).sort(sortFn);
+        return sortForRepo(repo);
     }
 };
 
@@ -437,19 +402,23 @@ const openFileAtIndex = async (fileChanges: FileChange[], index: number, backwar
 
 /**
  * Main navigation: go to next/previous change or file
+ * @param foldersFirst - from keybinding args (via scmViewMode context key), or undefined to use setting
  * @param flags - Flags.allRepos: search across all repos
  *              - Flags.backwards: navigate backwards
  *              - Flags.file: skip to next/previous file (ignore remaining changes in current file)
  */
-const goToNext = async (...flags: Flag[]) => {
+const goToNext = async (foldersFirst: boolean | undefined, ...flags: Flag[]) => {
     const f = new Set(flags);
     const allRepos = f.has(Flags.allRepos);
     const backwards = f.has(Flags.backwards);
     const goToNextFile = f.has(Flags.file);
 
+    const resolvedFoldersFirst = foldersFirst ??
+        (vscode.workspace.getConfiguration('scm').get('defaultViewMode') !== 'list');
+
     let fileChanges: FileChange[];
     try {
-        fileChanges = await getFileChanges(allRepos);
+        fileChanges = await getFileChanges(allRepos, resolvedFoldersFirst);
     } catch (error) {
         vscode.window.showErrorMessage(`Git extension error: ${error instanceof Error ? error.message : 'Unknown error'}`);
         return;
