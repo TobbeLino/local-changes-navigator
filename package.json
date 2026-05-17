@@ -31,6 +31,9 @@
         "SCM Providers",
         "Other"
     ],
+    "extensionDependencies": [
+		"vscode.git"
+	],
     "activationEvents": [],
     "main": "./dist/extension.js",
     "files": [
